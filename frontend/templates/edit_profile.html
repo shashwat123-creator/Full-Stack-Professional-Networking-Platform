@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile — Nexus{% endblock %}
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <h1 class="form-title">Edit Profile</h1>
+
+    <!-- Avatar Upload -->
+    <div class="avatar-upload">
+      <div class="avatar-upload__preview" id="avatarPreview">
+        {{ user.username[0].upper() }}
+      </div>
+      <div>
+        <label for="avatar_file" class="btn btn--ghost btn--sm" style="cursor:pointer;">Upload Photo</label>
+        <input type="file" id="avatar_file" accept="image/*" style="display:none" onchange="previewAvatar(this)">
+        <p class="avatar-upload__hint">JPG, PNG up to 2MB</p>
+      </div>
+    </div>
+
+    <!-- Profile Info Form -->
+    <form method="POST" action="{{ url_for('profile.edit_profile') }}" class="profile-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="full_name">Full Name</label>
+          <input type="text" id="full_name" name="full_name"
+                 value="{{ profile.full_name if profile and profile.full_name else '' }}"
+                 placeholder="Your full name" maxlength="100">
+        </div>
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" id="location" name="location"
+                 value="{{ profile.location if profile and profile.location else '' }}"
+                 placeholder="City, Country" maxlength="100">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="headline">Professional Headline</label>
+        <input type="text" id="headline" name="headline"
+               value="{{ profile.headline if profile and profile.headline else '' }}"
+               placeholder="e.g. Full Stack Developer at Company" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label for="bio">About You</label>
+        <textarea id="bio" name="bio" rows="4" maxlength="500"
+                  placeholder="Tell your professional story...">{{ profile.bio if profile and profile.bio else '' }}</textarea>
+      </div>
+      <div class="form-actions">
+        <a href="{{ url_for('profile.view_profile', user_id=user.id) }}" class="btn btn--outline">Cancel</a>
+        <button type="submit" class="btn btn--primary">Save Profile</button>
+      </div>
+    </form>
+
+    <!-- Change Password Section (Member 1) -->
+    <div class="section-divider"><span>Change Password</span></div>
+
+    <form method="POST" action="{{ url_for('auth.change_password') }}" class="profile-form" id="pwForm">
+      <div class="form-group">
+        <label for="current_password">Current Password</label>
+        <div class="input-wrapper">
+          <input type="password" id="current_password" name="current_password" placeholder="••••••••">
+          <button type="button" class="toggle-pw" onclick="togglePw('current_password')" tabindex="-1">👁</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="new_password">New Password</label>
+          <div class="input-wrapper">
+            <input type="password" id="new_password" name="new_password" placeholder="Min. 6 chars" oninput="checkStrength(this.value)">
+            <button type="button" class="toggle-pw" onclick="togglePw('new_password')" tabindex="-1">👁</button>
+          </div>
+          <div class="pw-strength">
+            <div class="pw-strength-bar"><div class="pw-strength-fill" id="strengthFill"></div></div>
+            <div class="pw-strength-text" id="strengthText"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirm_new_password">Confirm New Password</label>
+          <div class="input-wrapper">
+            <input type="password" id="confirm_new_password" name="confirm_new_password" placeholder="Repeat new password">
+            <button type="button" class="toggle-pw" onclick="togglePw('confirm_new_password')" tabindex="-1">👁</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn--outline" id="pwBtn">Update Password</button>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function togglePw(id) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function previewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const p = document.getElementById('avatarPreview');
+      p.innerHTML = `<img src="${e.target.result}" alt="avatar">`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+function checkStrength(pw) {
+  const fill = document.getElementById('strengthFill');
+  const text = document.getElementById('strengthText');
+  let score = 0;
+  if (pw.length >= 6)  score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = [
+    {w:'0%',c:'#e05c5c',t:''},
+    {w:'20%',c:'#e05c5c',t:'Very weak'},
+    {w:'40%',c:'#e0923c',t:'Weak'},
+    {w:'60%',c:'#c9a84c',t:'Fair'},
+    {w:'80%',c:'#4ecdc4',t:'Strong'},
+    {w:'100%',c:'#5cb85c',t:'Very strong'},
+  ];
+  const l = levels[score];
+  fill.style.width = l.w; fill.style.background = l.c;
+  text.textContent = l.t; text.style.color = l.c;
+}
+document.getElementById('pwForm').addEventListener('submit', function(e) {
+  const np = document.getElementById('new_password').value;
+  const cp = document.getElementById('confirm_new_password').value;
+  if (np && np !== cp) {
+    e.preventDefault();
+    alert('New passwords do not match!');
+  }
+});
+</script>
+{% endblock %}

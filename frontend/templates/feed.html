@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% block title %}Feed — Nexus{% endblock %}
+
+{% block extra_css %}
+<style>
+.trending-tags { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; margin-bottom:1rem; }
+.trending-title { font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--text3); font-weight:600; margin-bottom:.65rem; }
+.tag-list { display:flex; flex-wrap:wrap; gap:.4rem; }
+.tag-pill { background:var(--surface2); border:1px solid var(--border); color:var(--text2); padding:.25rem .7rem; border-radius:20px; font-size:.78rem; font-weight:500; transition:all .2s; cursor:pointer; text-decoration:none; }
+.tag-pill:hover,.tag-pill.active { background:var(--gold-glow); border-color:var(--gold); color:var(--gold); }
+.post-image { width:100%; max-height:360px; object-fit:cover; border-radius:var(--radius-sm); margin-bottom:.85rem; border:1px solid var(--border); }
+.post-hashtag { color:var(--gold); font-weight:500; cursor:pointer; }
+.post-hashtag:hover { text-decoration:underline; }
+.repost-badge { display:inline-flex; align-items:center; gap:.3rem; font-size:.75rem; color:var(--teal); background:rgba(78,205,196,.08); border:1px solid rgba(78,205,196,.15); border-radius:20px; padding:.2rem .65rem; margin-bottom:.6rem; }
+.image-upload-preview { position:relative; margin-top:.6rem; }
+.image-upload-preview img { width:100%; max-height:200px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--border); }
+.remove-image { position:absolute; top:.4rem; right:.4rem; background:rgba(0,0,0,.7); border:none; color:#fff; border-radius:50%; width:24px; height:24px; cursor:pointer; font-size:.8rem; display:flex; align-items:center; justify-content:center; }
+.create-post-tools { display:flex; align-items:center; gap:.5rem; margin-top:.5rem; padding-top:.5rem; border-top:1px solid var(--border); }
+.tool-btn { background:none; border:none; color:var(--text3); cursor:pointer; padding:.3rem .6rem; border-radius:var(--radius-xs); font-size:.82rem; display:flex; align-items:center; gap:.3rem; transition:all .2s; }
+.tool-btn:hover { color:var(--gold); background:var(--gold-glow); }
+.category-select { background:var(--surface2); border:1px solid var(--border); color:var(--text2); padding:.3rem .6rem; border-radius:var(--radius-xs); font-size:.82rem; cursor:pointer; }
+.category-select:focus { outline:none; border-color:var(--gold); }
+.repost-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:500; align-items:center; justify-content:center; }
+.repost-modal.open { display:flex; }
+.repost-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; width:100%; max-width:480px; animation:fadeUp .25s ease; }
+.repost-box h3 { font-family:'DM Serif Display',serif; margin-bottom:1rem; }
+.repost-original { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.75rem 1rem; margin-bottom:1rem; font-size:.875rem; color:var(--text2); }
+.repost-actions { display:flex; gap:.75rem; justify-content:flex-end; margin-top:1rem; }
+.active-filter-bar { display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem; background:var(--gold-glow); border:1px solid rgba(201,168,76,.2); border-radius:var(--radius-sm); font-size:.875rem; color:var(--gold); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="feed-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar sidebar--left">
+    <div class="user-card">
+      <div class="user-card__banner"></div>
+      <div class="user-card__body">
+        <div class="user-card__avatar">{{ current_user.username[0].upper() }}</div>
+        <div class="user-card__name">{{ current_user.username }}</div>
+        <div class="user-card__headline">{{ current_user.profile.headline if current_user.profile and current_user.profile.headline else 'No headline yet' }}</div>
+        <div class="user-card__divider"></div>
+        <div class="user-card__stat"><span>Posts</span><strong>{{ current_user.posts | length }}</strong></div>
+        <div class="user-card__divider"></div>
+        <a href="{{ url_for('profile.view_profile', user_id=current_user.id) }}" class="btn btn--outline btn--full btn--sm">View Profile</a>
+      </div>
+    </div>
+
+    <!-- Trending Tags -->
+    {% if trending_tags %}
+    <div class="trending-tags" style="margin-top:1rem">
+      <div class="trending-title">🔥 Trending</div>
+      <div class="tag-list">
+        {% for tag in trending_tags %}
+        <a href="{{ url_for('post.feed') }}?tag={{ tag }}"
+           class="tag-pill {% if active_tag == tag %}active{% endif %}">#{{ tag }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </aside>
+
+  <!-- MAIN FEED -->
+  <div class="feed-main">
+
+    <!-- Active filter bar -->
+    {% if active_tag %}
+    <div class="active-filter-bar">
+      <span>Showing posts tagged <strong>#{{ active_tag }}</strong></span>
+      <a href="{{ url_for('post.feed') }}" class="btn btn--sm btn--ghost" style="margin-left:auto">✕ Clear</a>
+    </div>
+    {% endif %}
+
+    <!-- Create Post Box -->
+    <div class="create-post-box">
+      <div class="create-post-header">
+        <div class="avatar-sm">{{ current_user.username[0].upper() }}</div>
+        <span style="color:var(--text3);font-size:.9rem;">Share something with your network...</span>
+      </div>
+      <form method="POST" action="{{ url_for('post.create_post') }}"
+            class="create-post-form" enctype="multipart/form-data" id="createPostForm">
+        <textarea name="content" id="post-content"
+                  placeholder="What's on your mind? Use #hashtags to categorize..."
+                  maxlength="1000" required rows="3"></textarea>
+
+        <!-- Image preview -->
+        <div class="image-upload-preview" id="imagePreview" style="display:none">
+          <img id="previewImg" src="" alt="preview">
+          <button type="button" class="remove-image" onclick="removeImage()">✕</button>
+        </div>
+
+        <input type="file" id="imageInput" name="image" accept="image/*" style="display:none" onchange="previewImage(this)">
+
+        <div class="create-post-tools">
+          <button type="button" class="tool-btn" onclick="document.getElementById('imageInput').click()">
+            📷 Photo
+          </button>
+          <select name="category" class="category-select">
+            <option value="">Category</option>
+            <option value="technology">💻 Technology</option>
+            <option value="career">💼 Career</option>
+            <option value="education">🎓 Education</option>
+            <option value="startup">🚀 Startup</option>
+            <option value="design">🎨 Design</option>
+            <option value="ai">🤖 AI</option>
+            <option value="networking">🤝 Networking</option>
+          </select>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:.75rem;">
+            <span class="char-count" id="char-count">0 / 1000</span>
+            <button type="submit" class="btn btn--primary btn--sm">Publish</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Posts -->
+    {% if posts %}
+      {% for post, user, profile in posts %}
+      <article class="post-card" data-post-id="{{ post.id }}">
+        <div class="post-header">
+          <a href="{{ url_for('profile.view_profile', user_id=user.id) }}" class="post-author-link">
+            <div class="avatar-sm">{{ user.username[0].upper() }}</div>
+            <div>
+              <div class="post-author-name">{{ user.username }}</div>
+              {% if profile and profile.headline %}
+              <div class="post-author-headline">{{ profile.headline }}</div>
+              {% endif %}
+              <div class="post-author-time">{{ post.created_at.strftime('%b %d, %Y · %I:%M %p') }}</div>
+            </div>
+          </a>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <!-- Share/Repost Button -->
+            {% if user.id != current_user.id %}
+            <button class="tool-btn" onclick="openRepost({{ post.id }}, '{{ user.username }}', {{ post.content | tojson }})" title="Repost">
+              🔁 Share
+            </button>
+            {% endif %}
+            {% if user.id == current_user.id %}
+            <form method="POST" action="{{ url_for('post.delete_post', post_id=post.id) }}"
+                  onsubmit="return confirm('Delete this post?')">
+              <button type="submit" class="btn-icon btn-icon--danger" title="Delete">✕</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Repost badge -->
+        {% if post.is_repost %}
+        <div class="repost-badge">🔁 Repost</div>
+        {% endif %}
+
+        <!-- Post content with clickable hashtags -->
+        <div class="post-content" id="content-{{ post.id }}"></div>
+        <script>
+          document.getElementById('content-{{ post.id }}').innerHTML =
+            {{ post.content | tojson }}.replace(/#(\w+)/g,
+              '<a class="post-hashtag" href="/posts/feed?tag=$1">#$1</a>');
+        </script>
+
+        <!-- Post image -->
+        {% if post.image_url %}
+        <img src="{{ post.image_url }}" alt="Post image" class="post-image"
+             onerror="this.style.display='none'">
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="post-actions">
+          <button class="like-btn {% if post.id in liked_post_ids %}liked{% endif %}"
+                  data-post-id="{{ post.id }}" onclick="toggleLike({{ post.id }}, this)">
+            <span class="like-icon">♥</span>
+            <span class="like-count" id="like-count-{{ post.id }}">{{ post.likes | length }}</span>
+            <span style="margin-left:.2rem">{{ 'Liked' if post.id in liked_post_ids else 'Like' }}</span>
+          </button>
+          <button class="comment-btn" onclick="toggleComments({{ post.id }})">
+            💬 <span id="comment-count-{{ post.id }}">{{ post.comments | length }}</span> Comment
+          </button>
+        </div>
+
+        <!-- Comments -->
+        <div class="comments-section" id="comments-{{ post.id }}" style="display:none;">
+          <div class="comments-list" id="comments-list-{{ post.id }}"></div>
+          <div class="add-comment">
+            <div class="avatar-xs">{{ current_user.username[0].upper() }}</div>
+            <input type="text" class="comment-input" id="comment-input-{{ post.id }}"
+                   placeholder="Write a comment..." maxlength="500">
+            <button class="btn btn--sm btn--primary" onclick="addComment({{ post.id }})">Post</button>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-feed">
+        <p>{% if active_tag %}No posts with #{{ active_tag }} yet.{% else %}No posts yet — be the first!{% endif %}</p>
+        {% if not active_tag %}
+        <button class="btn btn--primary btn--sm" onclick="document.getElementById('post-content').focus()">Create Post</button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Repost Modal -->
+<div class="repost-modal" id="repostModal">
+  <div class="repost-box">
+    <h3>🔁 Share Post</h3>
+    <div class="repost-original" id="repostOriginal"></div>
+    <form method="POST" id="repostForm">
+      <div class="form-group">
+        <label>Add your thoughts (optional)</label>
+        <textarea name="comment" id="repostComment" rows="2"
+                  placeholder="What do you think about this?" maxlength="300"
+                  style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:.75rem;border-radius:var(--radius-xs);font-size:.9rem;resize:none;"></textarea>
+      </div>
+      <div class="repost-actions">
+        <button type="button" class="btn btn--ghost btn--sm" onclick="closeRepost()">Cancel</button>
+        <button type="submit" class="btn btn--primary btn--sm">Share to Feed</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/feed.js') }}"></script>
+<script>
+// Image upload preview
+function previewImage(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('imagePreview').style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+function removeImage() {
+  document.getElementById('imageInput').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('previewImg').src = '';
+}
+
+// Repost modal
+function openRepost(postId, username, content) {
+  document.getElementById('repostOriginal').textContent = `@${username}: ${content.substring(0,150)}${content.length>150?'...':''}`;
+  document.getElementById('repostForm').action = `/posts/repost/${postId}`;
+  document.getElementById('repostModal').classList.add('open');
+}
+function closeRepost() {
+  document.getElementById('repostModal').classList.remove('open');
+  document.getElementById('repostComment').value = '';
+}
+// Close modal on backdrop click
+document.getElementById('repostModal').addEventListener('click', function(e) {
+  if (e.target === this) closeRepost();
+});
+</script>
+{% endblock %}
