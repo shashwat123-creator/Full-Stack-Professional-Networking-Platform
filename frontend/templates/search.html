@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Search — Nexus{% endblock %}
+{% block content %}
+<div style="max-width:780px;margin:0 auto;">
+
+  <!-- Search Bar -->
+  <form method="GET" action="{{ url_for('social.search') }}" style="margin-bottom:1.5rem;">
+    <div style="display:flex;gap:.75rem;">
+      <input type="text" name="q" value="{{ query }}"
+             placeholder="Search people, posts, hashtags..."
+             style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.85rem 1.1rem;border-radius:var(--radius-sm);font-size:1rem;"
+             autofocus>
+      <button type="submit" class="btn btn--primary">Search</button>
+    </div>
+  </form>
+
+  {% if query %}
+
+    <!-- People Results -->
+    {% if user_results %}
+    <h2 style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin-bottom:.85rem;color:var(--text2);">
+      People <span style="color:var(--text3);font-size:.85rem;">({{ user_results|length }})</span>
+    </h2>
+    <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.75rem;">
+      {% for user, profile in user_results %}
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem 1.25rem;display:flex;align-items:center;gap:.85rem;">
+        <div class="avatar-sm">{{ user.username[0].upper() }}</div>
+        <div style="flex:1;">
+          <a href="{{ url_for('profile.view_profile', user_id=user.id) }}"
+             style="font-weight:600;color:var(--text);font-size:.95rem;">
+            {{ profile.full_name if profile and profile.full_name else user.username }}
+          </a>
+          <div style="font-size:.8rem;color:var(--text3);">@{{ user.username }}</div>
+          {% if profile and profile.headline %}
+          <div style="font-size:.82rem;color:var(--text2);margin-top:.2rem;">{{ profile.headline }}</div>
+          {% endif %}
+        </div>
+        <a href="{{ url_for('profile.view_profile', user_id=user.id) }}" class="btn btn--outline btn--sm">View</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Post Results -->
+    {% if post_results %}
+    <h2 style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin-bottom:.85rem;color:var(--text2);">
+      Posts <span style="color:var(--text3);font-size:.85rem;">({{ post_results|length }})</span>
+    </h2>
+    <div style="display:flex;flex-direction:column;gap:.75rem;">
+      {% for post, user, profile in post_results %}
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1.1rem 1.25rem;">
+        <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:.65rem;">
+          <div class="avatar-xs">{{ user.username[0].upper() }}</div>
+          <a href="{{ url_for('profile.view_profile', user_id=user.id) }}"
+             style="font-weight:600;font-size:.875rem;color:var(--text);">{{ user.username }}</a>
+          <span style="font-size:.75rem;color:var(--text3);margin-left:auto;">{{ post.created_at.strftime('%b %d, %Y') }}</span>
+        </div>
+        <div style="font-size:.9rem;color:var(--text2);line-height:1.6;">
+          {{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}
+        </div>
+        <div style="margin-top:.6rem;font-size:.78rem;color:var(--text3);">
+          ♥ {{ post.likes|length }} · 💬 {{ post.comments|length }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not user_results and not post_results %}
+    <div class="empty-state">
+      <p>No results found for "<strong>{{ query }}</strong>"</p>
+      <p style="margin-top:.5rem;font-size:.85rem;">Try searching for a username, name, or hashtag.</p>
+    </div>
+    {% endif %}
+
+  {% else %}
+    <div class="empty-state">
+      <p>Search for people, posts or hashtags on Nexus.</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
