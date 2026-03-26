@@ -1,7 +1,5 @@
 """
-Nexus - Database Models
-========================
-All 4 members' models + Follow + Notification
+database module
 """
 
 from flask_sqlalchemy import SQLAlchemy
