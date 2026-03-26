@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Notifications — Nexus{% endblock %}
+{% block content %}
+<div style="max-width:680px;margin:0 auto;">
+  <h1 style="font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:1.25rem;">Notifications</h1>
+
+  {% if notifications %}
+    <div style="display:flex;flex-direction:column;gap:.6rem;">
+    {% for n in notifications %}
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem 1.25rem;display:flex;align-items:center;gap:.85rem;{% if not n.is_read %}border-left:3px solid var(--gold);{% endif %}">
+      <div class="avatar-sm">{{ n.actor.username[0].upper() if n.actor else '?' }}</div>
+      <div style="flex:1;">
+        <span style="font-weight:600;color:var(--gold);">{{ n.actor.username if n.actor else 'Someone' }}</span>
+        {% if n.type == 'like' %}
+          <span style="color:var(--text2);"> liked your post</span>
+          <span style="font-size:.82rem;color:var(--text3);display:block;margin-top:.2rem;">
+            "{{ n.post.content[:60] }}..." 
+          </span>
+        {% elif n.type == 'comment' %}
+          <span style="color:var(--text2);"> commented on your post</span>
+          <span style="font-size:.82rem;color:var(--text3);display:block;margin-top:.2rem;">
+            "{{ n.post.content[:60] }}..."
+          </span>
+        {% elif n.type == 'follow' %}
+          <span style="color:var(--text2);"> started following you</span>
+        {% endif %}
+      </div>
+      <div style="font-size:.75rem;color:var(--text3);white-space:nowrap;">
+        {{ n.created_at.strftime('%b %d') }}
+      </div>
+      {% if n.type in ['like','comment'] and n.post %}
+      <a href="{{ url_for('post.feed') }}" style="font-size:.8rem;color:var(--gold);">View</a>
+      {% elif n.type == 'follow' and n.actor %}
+      <a href="{{ url_for('profile.view_profile', user_id=n.actor.id) }}" style="font-size:.8rem;color:var(--gold);">Profile</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No notifications yet.</p>
+      <p style="margin-top:.5rem;font-size:.85rem;">When someone likes or comments on your posts, you'll see it here.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
